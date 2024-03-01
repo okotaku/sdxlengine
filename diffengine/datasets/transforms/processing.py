@@ -34,7 +34,7 @@ class TorchVisonTransformWrapper:
     """TorchVisonTransformWrapper.
 
     We can use torchvision.transforms like `dict(type='torchvision/Resize',
-    size=512)`
+    size=1024)`
 
     Args:
     ----
@@ -381,4 +381,69 @@ class RandomHorizontalFlip(BaseTransform):
             results[k] = components[k]
         if "crop_top_left" in results:
             results["crop_top_left"] = crop_top_left
+        return results
+
+
+class SaveImageShape(BaseTransform):
+    """Save image shape as 'ori_img_shape' in results."""
+
+    def transform(self, results: dict) -> dict | tuple[list, list] | None:
+        """Transform.
+
+        Args:
+        ----
+            results (dict): The result dict.
+
+        Returns:
+        -------
+            dict: 'ori_img_shape' key is added as original image shape.
+
+        """
+        if not isinstance(results["img"], list):
+            imgs = [results["img"]]
+        else:
+            imgs = results["img"]
+
+        ori_img_shape = [[img.height, img.width] for img in imgs]
+        if not isinstance(results["img"], list):
+            ori_img_shape = ori_img_shape[0]
+        results["ori_img_shape"] = ori_img_shape
+        return results
+
+
+class ComputeTimeIds(BaseTransform):
+    """Compute time ids as 'time_ids' in results."""
+
+    def transform(self, results: dict) -> dict | tuple[list, list] | None:
+        """Transform.
+
+        Args:
+        ----
+            results (dict): The result dict.
+
+        Returns:
+        -------
+            dict: 'time_ids' key is added as original image shape.
+
+        """
+        assert "ori_img_shape" in results
+        assert "crop_top_left" in results
+
+        time_ids = []
+        if not isinstance(results["img"], list):
+            img = [results["img"]]
+            ori_img_shape = [results["ori_img_shape"]]
+            crop_top_left = [results["crop_top_left"]]
+        else:
+            img = results["img"]
+            ori_img_shape = results["ori_img_shape"]
+            crop_top_left = results["crop_top_left"]
+
+        for i in range(len(img)):
+            target_size = [img[i].height, img[i].width]
+            time_ids.append(ori_img_shape[i] + crop_top_left[i] + target_size)
+
+        if not isinstance(results["img"], list):
+            time_ids = time_ids[0]
+        results["time_ids"] = time_ids
         return results

@@ -4,7 +4,7 @@ import unittest
 from diffusers import AutoencoderKL, UNet2DConditionModel
 from mmengine.config import Config
 from mmengine.testing import RunnerTestCase
-from transformers import CLIPTextModel
+from transformers import CLIPTextModel, CLIPTextModelWithProjection
 
 from diffengine.engine.hooks import SFastHook
 
@@ -31,9 +31,13 @@ class TestSFastHook(RunnerTestCase):
         hook = SFastHook()
         assert isinstance(runner.model.unet, UNet2DConditionModel)
         assert isinstance(runner.model.vae, AutoencoderKL)
-        assert isinstance(runner.model.text_encoder, CLIPTextModel)
+        assert isinstance(runner.model.text_encoder_one, CLIPTextModel)
+        assert isinstance(
+            runner.model.text_encoder_two, CLIPTextModelWithProjection)
         # compile
         hook.before_train(runner)
         assert not isinstance(runner.model.unet, UNet2DConditionModel)
         assert not isinstance(runner.model.vae, AutoencoderKL)
-        assert not isinstance(runner.model.text_encoder, CLIPTextModel)
+        assert not isinstance(runner.model.text_encoder_one, CLIPTextModel)
+        assert not isinstance(
+            runner.model.text_encoder_two, CLIPTextModelWithProjection)

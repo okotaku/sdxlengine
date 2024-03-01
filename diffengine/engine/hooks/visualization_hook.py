@@ -17,9 +17,9 @@ class VisualizationHook(Hook):
             Defaults to 1.
         by_epoch (bool): Whether to visualize by epoch. Defaults to True.
         height (int): The height in pixels of the generated image.
-            Defaults to 512.
+            Defaults to 1024.
         width (int): The width in pixels of the generated image.
-            Defaults to 512.
+            Defaults to 1024.
 
     """
 
@@ -28,8 +28,8 @@ class VisualizationHook(Hook):
     def __init__(self,
                  prompt: list[str],
                  interval: int = 1,
-                 height: int = 512,
-                 width: int = 512,
+                 height: int = 1024,
+                 width: int = 1024,
                  *,
                  by_epoch: bool = True,
                  **kwargs) -> None:

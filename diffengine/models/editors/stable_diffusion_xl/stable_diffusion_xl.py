@@ -3,14 +3,14 @@ from typing import Optional, Union
 
 import numpy as np
 import torch
-from diffusers import StableDiffusionPipeline
+from diffusers import DiffusionPipeline
 from mmengine import print_log
 from mmengine.model import BaseModel
 from mmengine.registry import MODELS
 from peft import get_peft_model
 from torch import nn
 
-from diffengine.models.editors.stable_diffusion.data_preprocessor import (
+from diffengine.models.editors.stable_diffusion_xl.data_preprocessor import (
     DataPreprocessor,
 )
 from diffengine.models.losses import L2Loss
@@ -22,18 +22,22 @@ weight_dtype_dict = {
     "bf16": torch.bfloat16,
 }
 
-class StableDiffusion(BaseModel):
-    """Stable Diffusion.
+class StableDiffusionXL(BaseModel):
+    """Stable Diffusion XL.
+
+    <https://huggingface.co/papers/2307.01952>`_
 
     Args:
     ----
-        tokenizer (dict): Config of tokenizer.
+        tokenizer_one (dict): Config of tokenizer one.
+        tokenizer_two (dict): Config of tokenizer two.
         scheduler (dict): Config of scheduler.
-        text_encoder (dict): Config of text encoder.
+        text_encoder_one (dict): Config of text encoder one.
+        text_encoder_two (dict): Config of text encoder two.
         vae (dict): Config of vae.
         unet (dict): Config of unet.
         model (str): pretrained model name of stable diffusion.
-            Defaults to 'runwayml/stable-diffusion-v1-5'.
+            Defaults to 'stabilityai/stable-diffusion-xl-base-1.0'.
         loss (dict): Config of loss. Defaults to
             ``dict(type='L2Loss', loss_weight=1.0)``.
         unet_lora_config (dict, optional): The LoRA config dict for Unet.
@@ -74,12 +78,14 @@ class StableDiffusion(BaseModel):
 
     def __init__(  # noqa: PLR0913,C901
         self,
-        tokenizer: dict,
+        tokenizer_one: dict,
+        tokenizer_two: dict,
         scheduler: dict,
-        text_encoder: dict,
+        text_encoder_one: dict,
+        text_encoder_two: dict,
         vae: dict,
         unet: dict,
-        model: str = "runwayml/stable-diffusion-v1-5",
+        model: str = "stabilityai/stable-diffusion-xl-base-1.0",
         loss: dict | None = None,
         unet_lora_config: dict | None = None,
         text_encoder_lora_config: dict | None = None,
@@ -148,11 +154,18 @@ class StableDiffusion(BaseModel):
         self.prediction_type = prediction_type
 
         if not self.pre_compute_text_embeddings:
-            self.tokenizer = MODELS.build(
-                tokenizer,
+            self.tokenizer_one = MODELS.build(
+                tokenizer_one,
                 default_args={"pretrained_model_name_or_path": model})
-            self.text_encoder = MODELS.build(
-                text_encoder,
+            self.tokenizer_two = MODELS.build(
+                tokenizer_two,
+                default_args={"pretrained_model_name_or_path": model})
+
+            self.text_encoder_one = MODELS.build(
+                text_encoder_one,
+                default_args={"pretrained_model_name_or_path": model})
+            self.text_encoder_two = MODELS.build(
+                text_encoder_two,
                 default_args={"pretrained_model_name_or_path": model})
 
         self.scheduler = MODELS.build(
@@ -183,9 +196,12 @@ class StableDiffusion(BaseModel):
         if self.text_encoder_lora_config is not None:
             text_encoder_lora_config = MODELS.build(
                 self.text_encoder_lora_config)
-            self.text_encoder = get_peft_model(
-                self.text_encoder, text_encoder_lora_config)
-            self.text_encoder.print_trainable_parameters()
+            self.text_encoder_one = get_peft_model(
+                self.text_encoder_one, text_encoder_lora_config)
+            self.text_encoder_one.print_trainable_parameters()
+            self.text_encoder_two = get_peft_model(
+                self.text_encoder_two, text_encoder_lora_config)
+            self.text_encoder_two.print_trainable_parameters()
         if self.unet_lora_config is not None:
             unet_lora_config = MODELS.build(
                 self.unet_lora_config)
@@ -200,13 +216,15 @@ class StableDiffusion(BaseModel):
         if self.gradient_checkpointing:
             self.unet.enable_gradient_checkpointing()
             if self.finetune_text_encoder:
-                self.text_encoder.gradient_checkpointing_enable()
+                self.text_encoder_one.gradient_checkpointing_enable()
+                self.text_encoder_two.gradient_checkpointing_enable()
 
         self.vae.requires_grad_(requires_grad=False)
         print_log("Set VAE untrainable.", "current")
         if (not self.finetune_text_encoder) and (
                 not self.pre_compute_text_embeddings):
-            self.text_encoder.requires_grad_(requires_grad=False)
+            self.text_encoder_one.requires_grad_(requires_grad=False)
+            self.text_encoder_two.requires_grad_(requires_grad=False)
             print_log("Set Text Encoder untrainable.", "current")
 
     def set_xformers(self) -> None:
@@ -236,10 +254,11 @@ class StableDiffusion(BaseModel):
     def infer(self,
               prompt: list[str],
               negative_prompt: str | None = None,
-              height: int = 512,
-              width: int = 512,
+              height: int = 1024,
+              width: int = 1024,
               num_inference_steps: int = 50,
               output_type: str = "pil",
+              seed: int = 0,
               **kwargs) -> list[np.ndarray]:
         """Inference function.
 
@@ -251,18 +270,20 @@ class StableDiffusion(BaseModel):
                 The prompt or prompts to guide the image generation.
                 Defaults to None.
             height (int):
-                The height in pixels of the generated image. Defaults to 512.
+                The height in pixels of the generated image. Defaults to 1024.
             width (int):
-                The width in pixels of the generated image. Defaults to 512.
+                The width in pixels of the generated image. Defaults to 1024.
             num_inference_steps (int): Number of inference steps.
                 Defaults to 50.
             output_type (str): The output format of the generate image.
                 Choose between 'pil' and 'latent'. Defaults to 'pil'.
+            seed (int): The seed for random number generator.
+                Defaults to 0.
             **kwargs: Other arguments.
 
         """
         if self.pre_compute_text_embeddings:
-            pipeline = StableDiffusionPipeline.from_pretrained(
+            pipeline = DiffusionPipeline.from_pretrained(
                 self.model,
                 vae=self.vae,
                 unet=self.unet,
@@ -270,11 +291,13 @@ class StableDiffusion(BaseModel):
                 torch_dtype=self.weight_dtype,
             )
         else:
-            pipeline = StableDiffusionPipeline.from_pretrained(
+            pipeline = DiffusionPipeline.from_pretrained(
                 self.model,
                 vae=self.vae,
-                text_encoder=self.text_encoder,
-                tokenizer=self.tokenizer,
+                text_encoder=self.text_encoder_one,
+                text_encoder_2=self.text_encoder_two,
+                tokenizer=self.tokenizer_one,
+                tokenizer_2=self.tokenizer_two,
                 unet=self.unet,
                 safety_checker=None,
                 torch_dtype=self.weight_dtype,
@@ -287,7 +310,8 @@ class StableDiffusion(BaseModel):
         pipeline.to(self.device)
         pipeline.set_progress_bar_config(disable=True)
         images = []
-        for p in prompt:
+        for i, p in enumerate(prompt):
+            generator = torch.Generator(device=self.device).manual_seed(i + seed)
             image = pipeline(
                 p,
                 negative_prompt=negative_prompt,
@@ -295,6 +319,7 @@ class StableDiffusion(BaseModel):
                 height=height,
                 width=width,
                 output_type=output_type,
+                generator=generator,
                 **kwargs).images[0]
             if output_type == "latent":
                 images.append(image)
@@ -321,6 +346,46 @@ class StableDiffusion(BaseModel):
         """Test step."""
         msg = "test_step is not implemented now, please use infer."
         raise NotImplementedError(msg)
+
+    def encode_prompt(
+        self,
+        text_one: torch.Tensor,
+        text_two: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Encode prompt.
+
+        Args:
+        ----
+            text_one (torch.Tensor): Token ids from tokenizer one.
+            text_two (torch.Tensor): Token ids from tokenizer two.
+
+        Returns:
+        -------
+            tuple[torch.Tensor, torch.Tensor]: Prompt embeddings
+
+        """
+        prompt_embeds_list = []
+
+        text_encoders = [self.text_encoder_one, self.text_encoder_two]
+        texts = [text_one, text_two]
+        for text_encoder, text in zip(text_encoders, texts, strict=True):
+
+            prompt_embeds = text_encoder(
+                text,
+                output_hidden_states=True,
+            )
+
+            # We are only ALWAYS interested in the pooled output of the
+            # final text encoder
+            pooled_prompt_embeds = prompt_embeds[0]
+            prompt_embeds = prompt_embeds.hidden_states[-2]
+            bs_embed, seq_len, _ = prompt_embeds.shape
+            prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
+            prompt_embeds_list.append(prompt_embeds)
+
+        prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
+        pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
+        return prompt_embeds, pooled_prompt_embeds
 
     def loss(self,
              model_pred: torch.Tensor,
@@ -365,7 +430,7 @@ class StableDiffusion(BaseModel):
         """Preprocess model input."""
         if self.input_perturbation_gamma > 0:
             input_noise = noise + self.input_perturbation_gamma * torch.randn_like(
-                noise).to(self.weight_dtype)
+                noise)
         else:
             input_noise = noise
         return self.scheduler.add_noise(latents, input_noise, timesteps)
@@ -414,19 +479,33 @@ class StableDiffusion(BaseModel):
         noisy_latents = self._preprocess_model_input(latents, noise, timesteps)
 
         if not self.pre_compute_text_embeddings:
-            inputs["text"] = self.tokenizer(
+            inputs["text_one"] = self.tokenizer_one(
                 inputs["text"],
-                max_length=self.tokenizer.model_max_length,
+                max_length=self.tokenizer_one.model_max_length,
                 padding="max_length",
                 truncation=True,
                 return_tensors="pt").input_ids.to(self.device)
-            encoder_hidden_states = self.text_encoder(inputs["text"])[0]
+            inputs["text_two"] = self.tokenizer_two(
+                inputs["text"],
+                max_length=self.tokenizer_two.model_max_length,
+                padding="max_length",
+                truncation=True,
+                return_tensors="pt").input_ids.to(self.device)
+            prompt_embeds, pooled_prompt_embeds = self.encode_prompt(
+                inputs["text_one"], inputs["text_two"])
         else:
-            encoder_hidden_states = inputs["prompt_embeds"].to(self.weight_dtype)
+            prompt_embeds = inputs["prompt_embeds"].to(self.weight_dtype)
+            pooled_prompt_embeds = inputs["pooled_prompt_embeds"].to(self.weight_dtype)
+
+        unet_added_conditions = {
+            "time_ids": inputs["time_ids"].to(self.weight_dtype),
+            "text_embeds": pooled_prompt_embeds,
+        }
 
         model_pred = self.unet(
             noisy_latents,
             timesteps,
-            encoder_hidden_states=encoder_hidden_states).sample
+            prompt_embeds,
+            added_cond_kwargs=unet_added_conditions).sample
 
         return self.loss(model_pred, noise, latents, timesteps)

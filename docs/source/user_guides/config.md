@@ -38,7 +38,7 @@ from mmengine.config import read_base
 with read_base():  # This config file will inherit all config files in `_base_`.
     from .._base_.datasets.pokemon_blip import *           # model settings
     from .._base_.default_runtime import *                 # data settings
-    from .._base_.models.stable_diffusion_v15 import *     # schedule settings
+    from .._base_.models.stable_diffusion_xl import *     # schedule settings
     from .._base_.schedules.stable_diffusion_50e import *  # runtime settings
 ```
 
@@ -57,10 +57,10 @@ Following is the model primitive config of the stable_diffusion_v15 config file 
 from diffusers import AutoencoderKL, DDPMScheduler, UNet2DConditionModel
 from transformers import CLIPTextModel, CLIPTokenizer
 
-from diffengine.models.editors import StableDiffusion
+from diffengine.models.editors import StableDiffusionXL
 
-base_model = "runwayml/stable-diffusion-v1-5"  # pretrained model name of stable diffusion
-model = dict(type=StableDiffusion,  # The type of the main model.
+base_model = "stabilityai/stable-diffusion-xl-base-1.0"  # pretrained model name of stable diffusion
+model = dict(type=StableDiffusionXL,  # The type of the main model.
              model=base_model,
              tokenizer=dict(  # tokenizer settings
                 type=CLIPTokenizer.from_pretrained,
@@ -107,8 +107,8 @@ from diffengine.engine.hooks import CheckpointHook, VisualizationHook
 train_pipeline = [  # augmentation settings
     dict(type=TorchVisonTransformWrapper,
          transform=torchvision.transforms.Resize,
-         size=512, interpolation="bilinear"),
-    dict(type=RandomCrop, size=512),
+         size=1024, interpolation="bilinear"),
+    dict(type=RandomCrop, size=1024),
     dict(type=RandomHorizontalFlip, p=0.5),
     dict(type=TorchVisonTransformWrapper,
          transform=torchvision.transforms.ToTensor),

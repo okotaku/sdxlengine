@@ -1,14 +1,14 @@
 # DiffEngine
 
-[![build](https://github.com/okotaku/template/actions/workflows/build.yml/badge.svg)](https://github.com/okotaku/template/actions/workflows/build.yml)
-[![Docs](https://img.shields.io/badge/docs-latest-blue)](https://template.readthedocs.io/en/latest/)
-[![license](https://img.shields.io/github/license/okotaku/template.svg)](https://github.com/okotaku/template/blob/main/LICENSE)
-[![open issues](https://isitmaintained.com/badge/open/okotaku/template.svg)](https://github.com/okotaku/template/issues)
+[![build](https://github.com/okotaku/sdxlengine/actions/workflows/build.yml/badge.svg)](https://github.com/okotaku/sdxlengine/actions/workflows/build.yml)
+[![Docs](https://img.shields.io/badge/docs-latest-blue)](https://sdxlengine.readthedocs.io/en/latest/)
+[![license](https://img.shields.io/github/license/okotaku/sdxlengine.svg)](https://github.com/okotaku/sdxlengine/blob/main/LICENSE)
+[![open issues](https://isitmaintained.com/badge/open/okotaku/sdxlengine.svg)](https://github.com/okotaku/sdxlengine/issues)
 [![Linting: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 
-[📘 Documentation](https://template0.readthedocs.io/en/latest/) |
-[🤔 Reporting Issues](https://github.com/okotaku/template/issues/new/choose)
+[📘 Documentation](https://sdxlengine0.readthedocs.io/en/latest/) |
+[🤔 Reporting Issues](https://github.com/okotaku/sdxlengine/issues/new/choose)
 
 ## 📄 Table of Contents
 
@@ -16,6 +16,8 @@
   - [📄 Table of Contents](#-table-of-contents)
   - [📖 Introduction 🔝](#-introduction-)
   - [🛠️ Installation 🔝](#️-installation-)
+    - [🐳 Docker](#-docker)
+    - [📦 Devcontainer](#-devcontainer)
   - [👨‍🏫 Get Started 🔝](#-get-started-)
   - [📘 Documentation 🔝](#-documentation-)
   - [📊 Model Zoo 🔝](#-model-zoo-)
@@ -26,38 +28,62 @@
 
 ## 📖 Introduction [🔝](#-table-of-contents)
 
-DiffEngine is the open-source toolbox for training state-of-the-art Diffusion Models. Packed with advanced features including diffusers and MMEngine, DiffEngine empowers both seasoned experts and newcomers in the field to efficiently create and enhance diffusion models. Stay at the forefront of innovation with our cutting-edge platform, accelerating your journey in Diffusion Models training.
+DiffEngine is an open-source toolbox designed for training state-of-the-art Diffusion Models. Packed with advanced features including stable-fast, diffusers and MMEngine, DiffEngine empowers those seasoned experts and newcomers in the field to efficiently create and enhance diffusion models. Stay at the forefront of innovation with our cutting-edge platform, accelerating your journey in Diffusion Models training.
 
-1. **Training state-of-the-art Diffusion Models**: Empower your projects with state-of-the-art Diffusion Models. We can use Stable Diffusion, Stable Diffusion XL, DreamBooth, LoRA etc.
-2. **Unified Config System and Module Designs**: Thanks to MMEngine, our platform boasts a unified configuration system and modular designs that streamline your workflow. Easily customize hyperparameters, loss functions, and other crucial settings while maintaining a structured and organized project environment.
-3. **Inference with diffusers.pipeline**: Seamlessly transition from training to real-world application using the diffusers.pipeline module. Effortlessly deploy your trained Diffusion Models for inference tasks, enabling quick and efficient decision-making based on the insights derived from your models.
+1. **Training state-of-the-art Diffusion Models**: Empower your projects with state-of-the-art Diffusion Models. Explore options like Stable Diffusion XL, DreamBooth, and LoRA.
+2. **Unified Config System and Module Designs**: Thanks to MMEngine, our platform boasts a unified configuration system and modular designs. Easily customize hyperparameters, loss functions, and other crucial settings while maintaining a structured and organized project environment.
+3. **Inference with diffusers.pipeline**: Seamlessly transition from training to real-world application. Effortlessly deploy your trained Diffusion Models for inference tasks, enabling quick and efficient decision-making based on model insights.
+4. **Optimized training speed**: Our platform is designed to accelerate training speed. We utilize the Apex, Nvidia NGC Container, `torch.compile`. You can achieve high-quality results in less time, accelerating your project timeline and enhancing your productivity.
 
 ## 🛠️ Installation [🔝](#-table-of-contents)
 
-Before installing DiffEngine, please ensure that PyTorch >= v2.0 has been successfully installed following the [official guide](https://pytorch.org/get-started/locally/).
+#### 🐳 Docker
 
-Install DiffEngine
+Below are the quick steps for installing and running dreambooth training using Docker:
+
+```bash
+git clone https://github.com/okotaku/template
+cd sdxlengine
+docker compose up -d
+docker compose exec template diffengine train stable_diffusion_xl_dreambooth_lora_dog
+```
+
+#### 📦 Devcontainer
+
+You can also utilize the devcontainer to develop the DiffEngine. The devcontainer is a pre-configured development environment that runs in a Docker container. It includes all the necessary tools and dependencies for developing, building, and testing the DiffEngine.
+
+1. Clone repository:
 
 ```
-pip install git+https://github.com/okotaku/diffengine.git
+git clone https://github.com/okotaku/template
+```
+
+2. Open the cloned repository in Visual Studio Code.
+
+3. Click on the "Reopen in Container" button located in the bottom right corner of the window. This action will open the repository within a devcontainer.
+
+4. Run the following command to start training with the selected config:
+
+```bash
+diffengine train stable_diffusion_xl_dreambooth_lora_dog
 ```
 
 ## 👨‍🏫 Get Started [🔝](#-table-of-contents)
 
 DiffEngine makes training easy through its pre-defined configs. These configs provide a streamlined way to start your training process. Here's how you can get started using one of the pre-defined configs:
 
-1. **Choose a config**: You can find various pre-defined configs in the [`configs`](diffengine/configs/) directory of the DiffEngine repository. For example, if you wish to train a DreamBooth model using the Stable Diffusion algorithm, you can use the [`configs/dreambooth/stable_diffusion_v15_dreambooth_lora_dog.py`](diffengine/configs/dreambooth/stable_diffusion_v15_dreambooth_lora_dog.py).
+1. **Choose a config**: You can find various pre-defined configs in the [`configs`](diffengine/configs/) directory of the DiffEngine repository. For example, if you wish to train a DreamBooth model using the Stable Diffusion algorithm, you can use the [`configs/dreambooth/stable_diffusion_xl_dreambooth_lora_dog.py`](diffengine/configs/dreambooth/stable_diffusion_xl_dreambooth_lora_dog.py).
 
 2. **Start Training**: Open a terminal and run the following command to start training with the selected config:
 
 ```bash
-diffengine train stable_diffusion_v15_dreambooth_lora_dog
+diffengine train stable_diffusion_xl_dreambooth_lora_dog
 ```
 
-3. **Monitor Progress and get results**: The training process will begin, and you can track its progress. The outputs of the training will be located in the `work_dirs/stable_diffusion_v15_dreambooth_lora_dog` directory, specifically when using the `stable_diffusion_v15_dreambooth_lora_dog` config.
+3. **Monitor Progress and get results**: The training process will begin, and you can track its progress. The outputs of the training will be located in the `work_dirs/stable_diffusion_xl_dreambooth_lora_dog` directory, specifically when using the `stable_diffusion_xl_dreambooth_lora_dog` config.
 
 ```
-work_dirs/stable_diffusion_v15_dreambooth_lora_dog
+work_dirs/stable_diffusion_xl_dreambooth_lora_dog
 ├── 20230802_033741
 |   ├── 20230802_033741.log  # log file
 |   └── vis_data
@@ -69,12 +95,12 @@ work_dirs/stable_diffusion_v15_dreambooth_lora_dog
 |   └── adapter_model.bin  # weight for inferencing with diffusers.pipeline
 ├── iter_1000.pth  # checkpoint from each step
 ├── last_checkpoint  # last checkpoint, it can be used for resuming
-└── stable_diffusion_v15_dreambooth_lora_dog.py  # latest config file
+└── stable_diffusion_xl_dreambooth_lora_dog.py  # latest config file
 ```
 
 An illustrative output example is provided below:
 
-![img](https://github.com/okotaku/diffengine/assets/24734142/e4576779-e05f-42d0-a709-d6481eea87a9)
+![exampledog](https://github.com/okotaku/sdxlengine/assets/24734142/ae1e4072-d2a3-445a-b11f-23d1f178a029)
 
 4. **Inference with diffusers.pipeline**: Once you have trained a model, simply specify the path to the saved model and inference by the `diffusers.pipeline` module.
 
@@ -82,50 +108,52 @@ An illustrative output example is provided below:
 from pathlib import Path
 
 import torch
-from diffusers import DiffusionPipeline
+from diffusers import DiffusionPipeline, AutoencoderKL
 from peft import PeftModel
 
-checkpoint = Path('work_dirs/stable_diffusion_v15_dreambooth_lora_dog/step999')
+checkpoint = Path('work_dirs/stable_diffusion_xl_dreambooth_lora_dog/step999')
 prompt = 'A photo of sks dog in a bucket'
 
+vae = AutoencoderKL.from_pretrained(
+    'madebyollin/sdxl-vae-fp16-fix',
+    torch_dtype=torch.float16,
+)
 pipe = DiffusionPipeline.from_pretrained(
-    'runwayml/stable-diffusion-v1-5', torch_dtype=torch.float16)
+    'stabilityai/stable-diffusion-xl-base-1.0', vae=vae, torch_dtype=torch.float16)
 pipe.to('cuda')
 pipe.unet = PeftModel.from_pretrained(pipe.unet, checkpoint / "unet", adapter_name="default")
-if (checkpoint / "text_encoder").exists():
-    pipe.text_encoder = PeftModel.from_pretrained(
-        pipe.text_encoder, checkpoint / "text_encoder", adapter_name="default"
-    )
 
 image = pipe(
     prompt,
-    num_inference_steps=50
+    num_inference_steps=50,
+    height=1024,
+    width=1024,
 ).images[0]
 image.save('demo.png')
 ```
 
 ## 📘 Documentation [🔝](#-table-of-contents)
 
-For detailed user guides and advanced guides, please refer to our [Documentation](https://diffengine.readthedocs.io/en/latest/):
+For detailed user guides and advanced guides, please refer to our [Documentation](https://sdxlengine.readthedocs.io/en/latest/):
 
-- [Get Started](https://diffengine.readthedocs.io/en/latest/get_started.html) for get started.
+- [Get Started](https://sdxlengine.readthedocs.io/en/latest/get_started.html) for get started.
 
 <details>
 <summary>Run Guides</summary>
 
-- [Run Stable Diffusion](https://diffengine.readthedocs.io/en/latest/run_guides/run.html)
-- [Run DreamBooth](https://diffengine.readthedocs.io/en/latest/run_guides/run_dreambooth.html)
-- [Run LoRA](https://diffengine.readthedocs.io/en/latest/run_guides/run_lora.html)
-- [Run ControlNet](https://diffengine.readthedocs.io/en/latest/run_guides/run_controlnet.html)
-- [Run Inpaint](https://diffengine.readthedocs.io/en/latest/run_guides/run_inpaint.html)
+- [Run Stable Diffusion](https://sdxlengine.readthedocs.io/en/latest/run_guides/run.html)
+- [Run DreamBooth](https://sdxlengine.readthedocs.io/en/latest/run_guides/run_dreambooth.html)
+- [Run LoRA](https://sdxlengine.readthedocs.io/en/latest/run_guides/run_lora.html)
+- [Run ControlNet](https://sdxlengine.readthedocs.io/en/latest/run_guides/run_controlnet.html)
+- [Run Inpaint](https://sdxlengine.readthedocs.io/en/latest/run_guides/run_inpaint.html)
 
 </details>
 
 <details>
 <summary>User Guides</summary>
 
-- [Learn About Config](https://diffengine.readthedocs.io/en/latest/user_guides/config.html)
-- [Prepare Dataset](https://diffengine.readthedocs.io/en/latest/user_guides/dataset_prepare.html)
+- [Learn About Config](https://sdxlengine.readthedocs.io/en/latest/user_guides/config.html)
+- [Prepare Dataset](https://sdxlengine.readthedocs.io/en/latest/user_guides/dataset_prepare.html)
 
 </details>
 
@@ -140,7 +168,7 @@ For detailed user guides and advanced guides, please refer to our [Documentation
   <tbody>
     <tr align="center" valign="bottom">
       <td>
-        <b>Stable Diffusions</b>
+        <b>Stable Diffusion XLs</b>
       </td>
       <td>
         <b>Others</b>
@@ -149,7 +177,7 @@ For detailed user guides and advanced guides, please refer to our [Documentation
     <tr valign="top">
       <td>
         <ul>
-            <li><a href="diffengine/configs/stable_diffusion/README.md">Stable Diffusion (2022)</a></li>
+            <li><a href="diffengine/configs/stable_diffusion_xl/README.md">Stable Diffusion XL (2023)</a></li>
             <li><a href="diffengine/configs/controlnet/README.md">ControlNet (ICCV'2023)</a></li>
             <li><a href="diffengine/configs/dreambooth/README.md">DreamBooth (CVPR'2023)</a></li>
             <li><a href="diffengine/configs/lora/README.md">LoRA (ICLR'2022)</a></li>

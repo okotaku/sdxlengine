@@ -1,6 +1,6 @@
 # V Prediction
 
-[Progressive Distillation for Fast Sampling of Diffusion Models](https://arxiv.org/abs/2202.00512)
+[Progressive Distillation for Fast Sampling of Diffusion Models](https://arxiv.org/abs/2202.001024)
 
 ## Abstract
 

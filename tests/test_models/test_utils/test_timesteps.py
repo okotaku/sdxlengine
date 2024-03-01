@@ -19,7 +19,7 @@ class TestTimeSteps(TestCase):
     def test_forward(self):
         module = TimeSteps()
         scheduler = DDPMScheduler.from_pretrained(
-            "runwayml/stable-diffusion-v1-5", subfolder="scheduler")
+            "stabilityai/stable-diffusion-xl-base-1.0", subfolder="scheduler")
         batch_size = 2
         timesteps = module(scheduler, batch_size, "cpu")
         assert timesteps.shape == (2,)
@@ -43,7 +43,7 @@ class TestLaterTimeSteps(TestCase):
     def test_forward(self):
         module = LaterTimeSteps()
         scheduler = DDPMScheduler.from_pretrained(
-            "runwayml/stable-diffusion-v1-5", subfolder="scheduler")
+            "stabilityai/stable-diffusion-xl-base-1.0", subfolder="scheduler")
         batch_size = 2
         timesteps = module(scheduler, batch_size, "cpu")
         assert timesteps.shape == (2,)
@@ -67,7 +67,7 @@ class TestEarlierTimeSteps(TestCase):
     def test_forward(self):
         module = EarlierTimeSteps()
         scheduler = DDPMScheduler.from_pretrained(
-            "runwayml/stable-diffusion-v1-5", subfolder="scheduler")
+            "stabilityai/stable-diffusion-xl-base-1.0", subfolder="scheduler")
         batch_size = 2
         timesteps = module(scheduler, batch_size, "cpu")
         assert timesteps.shape == (2,)
@@ -102,7 +102,7 @@ class TestRangeTimeSteps(TestCase):
     def test_forward(self):
         module = RangeTimeSteps()
         scheduler = DDPMScheduler.from_pretrained(
-            "runwayml/stable-diffusion-v1-5", subfolder="scheduler")
+            "stabilityai/stable-diffusion-xl-base-1.0", subfolder="scheduler")
         batch_size = 2
         timesteps = module(scheduler, batch_size, "cpu")
         assert timesteps.shape == (2,)

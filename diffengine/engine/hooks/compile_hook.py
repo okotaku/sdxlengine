@@ -4,6 +4,15 @@ from mmengine.model import is_model_wrapper
 from mmengine.runner import Runner
 
 
+def device_has_tensor_core() -> bool:
+    """Determine if the device has tensor cores."""
+    if torch.cuda.is_available():
+        major, _ = torch.cuda.get_device_capability()
+        min_major = 7
+        return major >= min_major
+    return False
+
+
 class CompileHook(Hook):
     """Compile Hook.
 
@@ -22,6 +31,9 @@ class CompileHook(Hook):
         super().__init__()
         self.backend = backend
         self.mode = mode
+        self.memory_format: torch.memory_format = (
+            torch.channels_last if device_has_tensor_core() else
+            torch.contiguous_format)
 
     def before_train(self, runner: Runner) -> None:
         """Compile the model.
@@ -35,6 +47,8 @@ class CompileHook(Hook):
         if is_model_wrapper(model):
             model = model.module
 
+        model.unet = model.unet.to(memory_format=self.memory_format)
+
         if hasattr(model, "_forward_compile"):
             target = "_forward_compile"
             func = getattr(model, target)
@@ -42,8 +56,8 @@ class CompileHook(Hook):
                 func, backend=self.backend, mode=self.mode)
             setattr(model, target, compiled_func)
         elif hasattr(model, "unet"):
-            model.unet = torch.compile(model.unet, backend=self.backend,
-                                    mode=self.mode)
+            model.unet = torch.compile(
+                model.unet, backend=self.backend, mode=self.mode)
         elif hasattr(model, "transformer"):
             model.transformer = torch.compile(
                 model.transformer, backend=self.backend, mode=self.mode)

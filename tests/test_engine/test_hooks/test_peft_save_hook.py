@@ -51,7 +51,10 @@ class TestPeftSaveHook(RunnerTestCase):
             osp.join(runner.work_dir, f"step{runner.iter}/unet",
                      "adapter_model.safetensors")).exists()
         assert Path(
-            osp.join(runner.work_dir, f"step{runner.iter}/text_encoder",
+            osp.join(runner.work_dir, f"step{runner.iter}/text_encoder_one",
+                     "adapter_model.safetensors")).exists()
+        assert Path(
+            osp.join(runner.work_dir, f"step{runner.iter}/text_encoder_two",
                      "adapter_model.safetensors")).exists()
         shutil.rmtree(
             osp.join(runner.work_dir, f"step{runner.iter}"))

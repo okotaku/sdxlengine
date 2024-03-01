@@ -125,11 +125,12 @@ class HFConditionDatasetPreComputeEmbs(HFConditionDataset):
 
     Args:
     ----
-        tokenizer (dict): Config of tokenizer.
-        scheduler (dict): Config of scheduler.
-        text_encoder (dict): Config of text encoder.
+        tokenizer_one (dict): Config of tokenizer one.
+        tokenizer_two (dict): Config of tokenizer two.
+        text_encoder_one (dict): Config of text encoder one.
+        text_encoder_two (dict): Config of text encoder two.
         model (str): pretrained model name of stable diffusion.
-            Defaults to 'runwayml/stable-diffusion-v1-5'.xt'.
+            Defaults to 'stabilityai/stable-diffusion-xl-base-1.0'.
         device (str): Device used to compute embeddings. Defaults to 'cuda'.
         proportion_empty_prompts (float): The probabilities to replace empty
             text. Defaults to 0.0.
@@ -138,9 +139,11 @@ class HFConditionDatasetPreComputeEmbs(HFConditionDataset):
 
     def __init__(self,
                  *args,
-                 tokenizer: dict,
-                 text_encoder: dict,
-                 model: str = "runwayml/stable-diffusion-v1-5",
+                 tokenizer_one: dict,
+                 tokenizer_two: dict,
+                 text_encoder_one: dict,
+                 text_encoder_two: dict,
+                 model: str = "stabilityai/stable-diffusion-xl-base-1.0",
                  text_hasher: str = "text",
                  device: str = "cuda",
                  proportion_empty_prompts: float = 0.0,
@@ -149,18 +152,25 @@ class HFConditionDatasetPreComputeEmbs(HFConditionDataset):
 
         self.proportion_empty_prompts = proportion_empty_prompts
 
-        tokenizer = MODELS.build(
-            tokenizer,
+        tokenizer_one = MODELS.build(
+            tokenizer_one,
             default_args={"pretrained_model_name_or_path": model})
-        text_encoder = MODELS.build(
-            text_encoder,
+        tokenizer_two = MODELS.build(
+            tokenizer_two,
+            default_args={"pretrained_model_name_or_path": model})
+
+        text_encoder_one = MODELS.build(
+            text_encoder_one,
+            default_args={"pretrained_model_name_or_path": model}).to(device)
+        text_encoder_two = MODELS.build(
+            text_encoder_two,
             default_args={"pretrained_model_name_or_path": model}).to(device)
 
         new_fingerprint = Hasher.hash(text_hasher)
         compute_embeddings_fn = functools.partial(
             encode_prompt,
-            text_encoder=text_encoder,
-            tokenizer=tokenizer,
+            text_encoders=[text_encoder_one, text_encoder_two],
+            tokenizers=[tokenizer_one, tokenizer_two],
             caption_column=self.caption_column,
         )
         self.dataset = self.dataset.map(
@@ -170,12 +180,12 @@ class HFConditionDatasetPreComputeEmbs(HFConditionDataset):
             new_fingerprint=new_fingerprint)
         self.empty_embed = encode_prompt(
             {"text": [""]},
-            text_encoder=text_encoder,
-            tokenizer=tokenizer,
+            text_encoders=[text_encoder_one, text_encoder_two],
+            tokenizers=[tokenizer_one, tokenizer_two],
             caption_column="text",
         )
 
-        del text_encoder, tokenizer
+        del text_encoder_one, text_encoder_two, tokenizer_one, tokenizer_two
         gc.collect()
         torch.cuda.empty_cache()
 
@@ -207,11 +217,15 @@ class HFConditionDatasetPreComputeEmbs(HFConditionDataset):
                 os.path.join(self.dataset_name, condition_image))
         condition_image = condition_image.convert("RGB")
 
+        use_null_embed = random.random() < self.proportion_empty_prompts
         result = {
             "img": image,
             "condition_img": condition_image,
             "prompt_embeds": data_info["prompt_embeds"] if (
-                random.random() < self.proportion_empty_prompts
+                use_null_embed
                 ) else self.empty_embed["prompt_embeds"][0],
+            "pooled_prompt_embeds": data_info["pooled_prompt_embeds"] if (
+                use_null_embed
+                ) else self.empty_embed["pooled_prompt_embeds"][0],
         }
         return self.pipeline(result)

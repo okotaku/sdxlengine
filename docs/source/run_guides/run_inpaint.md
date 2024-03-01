@@ -1,4 +1,4 @@
-# Stable Diffusion Inpaint Training
+# Stable Diffusion XL Inpaint Training
 
 You can also check [`configs/inpaint/README.md`](https://github.com/okotaku/diffengine/tree/main/diffengine/configs/inpaint/README.md) file.
 
@@ -38,7 +38,7 @@ Once you have trained a model, specify the path to the saved model and utilize i
 
 ```py
 import torch
-from diffusers import StableDiffusionInpaintPipeline, UNet2DConditionModel
+from diffusers import StableDiffusionXLInpaintPipeline, UNet2DConditionModel
 from diffusers.utils import load_image
 
 prompt = 'a photo of sks dog'
@@ -48,8 +48,8 @@ checkpoint = 'work_dirs/stable_diffusion_inpaint_dog/step999'
 
 unet = UNet2DConditionModel.from_pretrained(
     checkpoint, subfolder='unet', torch_dtype=torch.float16)
-pipe = StableDiffusionInpaintPipeline.from_pretrained(
-    'runwayml/stable-diffusion-inpainting', unet=unet, torch_dtype=torch.float16)
+pipe = StableDiffusionXLInpaintPipeline.from_pretrained(
+    'diffusers/stable-diffusion-xl-1.0-inpainting-0.1', unet=unet, torch_dtype=torch.float16)
 pipe.to('cuda')
 
 image = pipe(

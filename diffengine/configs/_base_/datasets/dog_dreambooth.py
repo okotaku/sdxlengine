@@ -3,27 +3,35 @@ from mmengine.dataset import InfiniteSampler
 
 from diffengine.datasets import HFDreamBoothDataset
 from diffengine.datasets.transforms import (
+    ComputeTimeIds,
     PackInputs,
     RandomCrop,
     RandomHorizontalFlip,
+    SaveImageShape,
     TorchVisonTransformWrapper,
 )
-from diffengine.engine.hooks import PeftSaveHook, VisualizationHook
+from diffengine.engine.hooks import (
+    CompileHook,
+    PeftSaveHook,
+    VisualizationHook,
+)
 
 train_pipeline = [
+    dict(type=SaveImageShape),
     dict(type=TorchVisonTransformWrapper,
          transform=torchvision.transforms.Resize,
-         size=512, interpolation="bilinear"),
-    dict(type=RandomCrop, size=512),
+         size=1024, interpolation="bilinear"),
+    dict(type=RandomCrop, size=1024),
     dict(type=RandomHorizontalFlip, p=0.5),
+    dict(type=ComputeTimeIds),
     dict(type=TorchVisonTransformWrapper,
          transform=torchvision.transforms.ToTensor),
     dict(type=TorchVisonTransformWrapper,
          transform=torchvision.transforms.Normalize, mean=[0.5], std=[0.5]),
-    dict(type=PackInputs),
+    dict(type=PackInputs, input_keys=["img", "text", "time_ids"]),
 ]
 train_dataloader = dict(
-    batch_size=4,
+    batch_size=1,
     num_workers=4,
     dataset=dict(
         type=HFDreamBoothDataset,
@@ -45,4 +53,5 @@ custom_hooks = [
         by_epoch=False,
         interval=100),
     dict(type=PeftSaveHook),
+    dict(type=CompileHook),
 ]

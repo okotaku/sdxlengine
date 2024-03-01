@@ -5,9 +5,11 @@ from .inpaint_processing import GetMaskedImage, MaskToTensor
 from .loading import LoadMask
 from .processing import (
     CenterCrop,
+    ComputeTimeIds,
     MultiAspectRatioResizeCenterCrop,
     RandomCrop,
     RandomHorizontalFlip,
+    SaveImageShape,
     TorchVisonTransformWrapper,
 )
 from .text_processing import AddConstantCaption, RandomTextDrop
@@ -29,4 +31,6 @@ __all__ = [
     "AddConstantCaption",
     "DumpMaskedImage",
     "TorchVisonTransformWrapper",
+    "SaveImageShape",
+    "ComputeTimeIds",
 ]

@@ -40,7 +40,7 @@ def test_snr_l2_loss():
     weight = torch.Tensor([[1], [0.1]])
     timesteps = (torch.ones((pred.shape[0], )) + 10)
     scheduler = DDPMScheduler.from_pretrained(
-        "runwayml/stable-diffusion-v1-5", subfolder="scheduler")
+        "stabilityai/stable-diffusion-xl-base-1.0", subfolder="scheduler")
 
     loss = SNRL2Loss()
     assert torch.allclose(
@@ -87,7 +87,7 @@ def test_debias_estimation_loss():
     weight = torch.Tensor([[1], [0.1]])
     timesteps = (torch.ones((pred.shape[0], )) + 10)
     scheduler = DDPMScheduler.from_pretrained(
-        "runwayml/stable-diffusion-v1-5", subfolder="scheduler")
+        "stabilityai/stable-diffusion-xl-base-1.0", subfolder="scheduler")
 
     loss = DeBiasEstimationLoss()
     assert torch.allclose(

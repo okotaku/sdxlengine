@@ -7,40 +7,43 @@ from mmengine.optim import OptimWrapper
 from mmengine.registry import MODELS
 from peft import LoraConfig
 from torch.optim import SGD
-from transformers import CLIPTextModel, CLIPTokenizer
+from transformers import AutoTokenizer, CLIPTextModel, CLIPTextModelWithProjection
 
-from diffengine.models.editors import StableDiffusion
-from diffengine.models.editors.stable_diffusion.data_preprocessor import (
-    DataPreprocessor,
-)
-from diffengine.models.losses import DeBiasEstimationLoss, L2Loss, SNRL2Loss
+from diffengine.models.editors import StableDiffusionXL
+from diffengine.models.losses import DeBiasEstimationLoss, SNRL2Loss
 
 
-class TestStableDiffusion(TestCase):
+class TestStableDiffusionXL(TestCase):
 
     def _get_config(self) -> dict:
-        base_model = "diffusers/tiny-stable-diffusion-torch"
+        base_model = "hf-internal-testing/tiny-stable-diffusion-xl-pipe"
         return dict(
-            type=StableDiffusion,
+            type=StableDiffusionXL,
              model=base_model,
-             tokenizer=dict(type=CLIPTokenizer.from_pretrained,
+             tokenizer_one=dict(type=AutoTokenizer.from_pretrained,
                             pretrained_model_name_or_path=base_model,
-                            subfolder="tokenizer"),
+                            subfolder="tokenizer",
+                            use_fast=False),
+             tokenizer_two=dict(type=AutoTokenizer.from_pretrained,
+                            pretrained_model_name_or_path=base_model,
+                            subfolder="tokenizer_2",
+                            use_fast=False),
              scheduler=dict(type=DDPMScheduler.from_pretrained,
                             pretrained_model_name_or_path=base_model,
                             subfolder="scheduler"),
-             text_encoder=dict(type=CLIPTextModel.from_pretrained,
+             text_encoder_one=dict(type=CLIPTextModel.from_pretrained,
                                pretrained_model_name_or_path=base_model,
                                subfolder="text_encoder"),
+             text_encoder_two=dict(type=CLIPTextModelWithProjection.from_pretrained,
+                               pretrained_model_name_or_path=base_model,
+                               subfolder="text_encoder_2"),
              vae=dict(
                 type=AutoencoderKL.from_pretrained,
                 pretrained_model_name_or_path=base_model,
                 subfolder="vae"),
              unet=dict(type=UNet2DConditionModel.from_pretrained,
                              pretrained_model_name_or_path=base_model,
-                             subfolder="unet"),
-            data_preprocessor=dict(type=DataPreprocessor),
-            loss=dict(type=L2Loss))
+                             subfolder="unet"))
 
     def test_init(self):
         cfg = self._get_config()
@@ -130,8 +133,10 @@ class TestStableDiffusion(TestCase):
         cfg.update(pre_compute_text_embeddings=True)
         StableDiffuser = MODELS.build(cfg)
 
-        assert not hasattr(StableDiffuser, "tokenizer")
-        assert not hasattr(StableDiffuser, "text_encoder")
+        assert not hasattr(StableDiffuser, "tokenizer_one")
+        assert not hasattr(StableDiffuser, "text_encoder_one")
+        assert not hasattr(StableDiffuser, "tokenizer_two")
+        assert not hasattr(StableDiffuser, "text_encoder_two")
 
         # test infer
         result = StableDiffuser.infer(
@@ -148,7 +153,10 @@ class TestStableDiffusion(TestCase):
 
         # test train step
         data = dict(
-            inputs=dict(img=[torch.zeros((3, 64, 64))], text=["a dog"]))
+            inputs=dict(
+                img=[torch.zeros((3, 64, 64))],
+                text=["a dog"],
+                time_ids=[torch.zeros((1, 6))]))
         optimizer = SGD(StableDiffuser.parameters(), lr=0.1)
         optim_wrapper = OptimWrapper(optimizer)
         log_vars = StableDiffuser.train_step(data, optim_wrapper)
@@ -164,7 +172,10 @@ class TestStableDiffusion(TestCase):
 
         # test train step
         data = dict(
-            inputs=dict(img=[torch.zeros((3, 64, 64))], text=["a dog"]))
+            inputs=dict(
+                img=[torch.zeros((3, 64, 64))],
+                text=["a dog"],
+                time_ids=[torch.zeros((1, 6))]))
         optimizer = SGD(StableDiffuser.parameters(), lr=0.1)
         optim_wrapper = OptimWrapper(optimizer)
         log_vars = StableDiffuser.train_step(data, optim_wrapper)
@@ -186,7 +197,10 @@ class TestStableDiffusion(TestCase):
 
         # test train step
         data = dict(
-            inputs=dict(img=[torch.zeros((3, 64, 64))], text=["a dog"]))
+            inputs=dict(
+                img=[torch.zeros((3, 64, 64))],
+                text=["a dog"],
+                time_ids=[torch.zeros((1, 6))]))
         optimizer = SGD(StableDiffuser.parameters(), lr=0.1)
         optim_wrapper = OptimWrapper(optimizer)
         log_vars = StableDiffuser.train_step(data, optim_wrapper)
@@ -201,7 +215,10 @@ class TestStableDiffusion(TestCase):
 
         # test train step
         data = dict(
-            inputs=dict(img=[torch.zeros((3, 64, 64))], text=["a dog"]))
+            inputs=dict(
+                img=[torch.zeros((3, 64, 64))],
+                text=["a dog"],
+                time_ids=[torch.zeros((1, 6))]))
         optimizer = SGD(StableDiffuser.parameters(), lr=0.1)
         optim_wrapper = OptimWrapper(optimizer)
         log_vars = StableDiffuser.train_step(data, optim_wrapper)
@@ -216,7 +233,10 @@ class TestStableDiffusion(TestCase):
 
         # test train step
         data = dict(
-            inputs=dict(img=[torch.zeros((3, 64, 64))], text=["a dog"]))
+            inputs=dict(
+                img=[torch.zeros((3, 64, 64))],
+                text=["a dog"],
+                time_ids=[torch.zeros((1, 6))]))
         optimizer = SGD(StableDiffuser.parameters(), lr=0.1)
         optim_wrapper = OptimWrapper(optimizer)
         log_vars = StableDiffuser.train_step(data, optim_wrapper)
@@ -229,14 +249,18 @@ class TestStableDiffusion(TestCase):
         cfg.update(pre_compute_text_embeddings=True)
         StableDiffuser = MODELS.build(cfg)
 
-        assert not hasattr(StableDiffuser, "tokenizer")
-        assert not hasattr(StableDiffuser, "text_encoder")
+        assert not hasattr(StableDiffuser, "tokenizer_one")
+        assert not hasattr(StableDiffuser, "text_encoder_one")
+        assert not hasattr(StableDiffuser, "tokenizer_two")
+        assert not hasattr(StableDiffuser, "text_encoder_two")
 
         # test train step
         data = dict(
             inputs=dict(
                 img=[torch.zeros((3, 64, 64))],
-                prompt_embeds=[torch.zeros((77, 32))]))
+                prompt_embeds=[torch.zeros((77, 64))],
+                pooled_prompt_embeds=[torch.zeros(32)],
+                time_ids=[torch.zeros((1, 6))]))
         optimizer = SGD(StableDiffuser.parameters(), lr=0.1)
         optim_wrapper = OptimWrapper(optimizer)
         log_vars = StableDiffuser.train_step(data, optim_wrapper)
@@ -251,7 +275,10 @@ class TestStableDiffusion(TestCase):
 
         # test train step
         data = dict(
-            inputs=dict(img=[torch.zeros((3, 64, 64))], text=["a dog"]))
+            inputs=dict(
+                img=[torch.zeros((3, 64, 64))],
+                text=["a sks dog"],
+                time_ids=[torch.zeros((1, 6))]))
         optimizer = SGD(StableDiffuser.parameters(), lr=0.1)
         optim_wrapper = OptimWrapper(optimizer)
         log_vars = StableDiffuser.train_step(data, optim_wrapper)
@@ -266,7 +293,10 @@ class TestStableDiffusion(TestCase):
 
         # test train step
         data = dict(
-            inputs=dict(img=[torch.zeros((3, 64, 64))], text=["a dog"]))
+            inputs=dict(
+                img=[torch.zeros((3, 64, 64))],
+                text=["a sks dog"],
+                time_ids=[torch.zeros((1, 6))]))
         optimizer = SGD(StableDiffuser.parameters(), lr=0.1)
         optim_wrapper = OptimWrapper(optimizer)
         log_vars = StableDiffuser.train_step(data, optim_wrapper)

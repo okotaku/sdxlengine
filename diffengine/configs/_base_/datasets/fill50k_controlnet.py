@@ -3,24 +3,32 @@ from mmengine.dataset import DefaultSampler
 
 from diffengine.datasets import HFConditionDataset
 from diffengine.datasets.transforms import (
+    ComputeTimeIds,
     DumpImage,
     PackInputs,
     RandomCrop,
     RandomHorizontalFlip,
     RandomTextDrop,
+    SaveImageShape,
     TorchVisonTransformWrapper,
 )
-from diffengine.engine.hooks import ControlNetSaveHook, VisualizationHook
+from diffengine.engine.hooks import (
+    CompileHook,
+    ControlNetSaveHook,
+    VisualizationHook,
+)
 
 train_pipeline = [
+    dict(type=SaveImageShape),
     dict(
         type=TorchVisonTransformWrapper,
         transform=torchvision.transforms.Resize,
-        size=512,
+        size=1024,
         interpolation="bilinear",
         keys=["img", "condition_img"]),
-    dict(type=RandomCrop, size=512, keys=["img", "condition_img"]),
+    dict(type=RandomCrop, size=1024, keys=["img", "condition_img"]),
     dict(type=RandomHorizontalFlip, p=0.5, keys=["img", "condition_img"]),
+    dict(type=ComputeTimeIds),
     dict(type=TorchVisonTransformWrapper,
          transform=torchvision.transforms.ToTensor,
          keys=["img", "condition_img"]),
@@ -28,10 +36,11 @@ train_pipeline = [
     dict(type=TorchVisonTransformWrapper,
          transform=torchvision.transforms.Normalize, mean=[0.5], std=[0.5]),
     dict(type=RandomTextDrop),
-    dict(type=PackInputs, input_keys=["img", "condition_img", "text"]),
+    dict(type=PackInputs,
+         input_keys=["img", "condition_img", "text", "time_ids"]),
 ]
 train_dataloader = dict(
-    batch_size=8,
+    batch_size=2,
     num_workers=4,
     dataset=dict(
         type=HFConditionDataset,
@@ -55,4 +64,5 @@ custom_hooks = [
             'https://github.com/okotaku/diffengine/assets/24734142/1af9dbb0-b056-435c-bc4b-62a823889191'  # noqa
         ] * 4),
     dict(type=ControlNetSaveHook),
+    dict(type=CompileHook),
 ]

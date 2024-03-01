@@ -32,7 +32,7 @@ $ diffengine train ${CONFIG_FILE}
 $ NPROC_PER_NODE=${GPU_NUM} diffengine train ${CONFIG_FILE}
 
 # Example.
-$ diffengine train stable_diffusion_v15_dreambooth_lora_dog
+$ diffengine train stable_diffusion_xl_dreambooth_lora_dog
 ```
 
 ## Inference with diffusers
@@ -43,24 +43,26 @@ Once you have trained a model, specify the path to the saved model and utilize i
 from pathlib import Path
 
 import torch
-from diffusers import DiffusionPipeline
+from diffusers import DiffusionPipeline, AutoencoderKL
 from peft import PeftModel
 
-checkpoint = Path('work_dirs/stable_diffusion_v15_dreambooth_lora_dog/step999')
+checkpoint = Path('work_dirs/stable_diffusion_xl_dreambooth_lora_dog/step999')
 prompt = 'A photo of sks dog in a bucket'
 
+vae = AutoencoderKL.from_pretrained(
+    'madebyollin/sdxl-vae-fp16-fix',
+    torch_dtype=torch.float16,
+)
 pipe = DiffusionPipeline.from_pretrained(
-    'runwayml/stable-diffusion-v1-5', torch_dtype=torch.float16)
+    'stabilityai/stable-diffusion-xl-base-1.0', vae=vae, torch_dtype=torch.float16)
 pipe.to('cuda')
 pipe.unet = PeftModel.from_pretrained(pipe.unet, checkpoint / "unet", adapter_name="default")
-if (checkpoint / "text_encoder").exists():
-    pipe.text_encoder = PeftModel.from_pretrained(
-        pipe.text_encoder, checkpoint / "text_encoder", adapter_name="default"
-    )
 
 image = pipe(
     prompt,
     num_inference_steps=50,
+    height=1024,
+    width=1024,
 ).images[0]
 image.save('demo.png')
 ```
@@ -69,6 +71,6 @@ You can see more details on [Run DreamBooth docs](../../docs/source/run_guides/r
 
 ## Results Example
 
-#### stable_diffusion_v15_dreambooth_lora_dog
+#### stable_diffusion_xl_dreambooth_lora_dog
 
-![examplev15](https://github.com/okotaku/diffengine/assets/24734142/f9c2430c-cee7-43cf-868f-35c6301dc573)
+![exampledog](https://github.com/okotaku/diffengine/assets/24734142/ae1e4072-d2a3-445a-b11f-23d1f178a029)

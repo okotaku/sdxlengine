@@ -13,9 +13,11 @@ from torchvision import transforms
 
 from diffengine.datasets import (
     CenterCrop,
+    ComputeTimeIds,
     MultiAspectRatioResizeCenterCrop,
     RandomCrop,
     RandomHorizontalFlip,
+    SaveImageShape,
     TorchVisonTransformWrapper,
 )
 
@@ -602,3 +604,55 @@ class TestMultiAspectRatioResizeCenterCrop(TestCase):
         with pytest.raises(
                 AssertionError, match="MultiAspectRatioResizeCenterCrop only"):
             _ = trans(data)
+
+
+class TestSaveImageShape(TestCase):
+
+    def test_transform(self):
+        img_path = osp.join(osp.dirname(__file__), "../../testdata/color.jpg")
+        data = {"img": Image.open(img_path)}
+        ori_img_shape = [data["img"].height, data["img"].width]
+
+        # test transform
+        trans = TRANSFORMS.build(dict(type=SaveImageShape))
+        data = trans(data)
+        self.assertListEqual(data["ori_img_shape"], ori_img_shape)
+
+    def test_transform_list(self):
+        img_path = osp.join(osp.dirname(__file__), "../../testdata/color.jpg")
+        data = {"img": [Image.open(img_path),
+                        Image.open(img_path).resize((64, 64))]}
+        ori_img_shape = [[img.height, img.width] for img in data["img"]]
+
+        # test transform
+        trans = TRANSFORMS.build(dict(type=SaveImageShape))
+        data = trans(data)
+        self.assertListEqual(data["ori_img_shape"], ori_img_shape)
+
+
+class TestComputeTimeIds(TestCase):
+
+    def test_transform(self):
+        img_path = osp.join(osp.dirname(__file__), "../../testdata/color.jpg")
+        img = Image.open(img_path)
+        data = {"img": img, "ori_img_shape": [32, 32], "crop_top_left": [0, 0]}
+
+        # test transform
+        trans = TRANSFORMS.build(dict(type=ComputeTimeIds))
+        data = trans(data)
+        self.assertListEqual(data["time_ids"],
+                             [32, 32, 0, 0, img.height, img.width])
+
+    def test_transform_list(self):
+        img_path = osp.join(osp.dirname(__file__), "../../testdata/color.jpg")
+        img = Image.open(img_path)
+        data = {"img": [img, img],
+                "ori_img_shape": [[32, 32], [48, 48]],
+                "crop_top_left": [[0, 0], [10, 10]]}
+
+        # test transform
+        trans = TRANSFORMS.build(dict(type=ComputeTimeIds))
+        data = trans(data)
+        self.assertListEqual(data["time_ids"],
+                             [[32, 32, 0, 0, img.height, img.width],
+                              [48, 48, 10, 10, img.height, img.width]])

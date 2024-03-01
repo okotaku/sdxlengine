@@ -1,11 +1,10 @@
 from apex.optimizers import FusedAdam
 from mmengine.hooks import CheckpointHook
-from mmengine.optim import AmpOptimWrapper
+from mmengine.optim import OptimWrapper
 from mmengine.runner import IterBasedTrainLoop
 
 optim_wrapper = dict(
-    type=AmpOptimWrapper,
-    dtype="float16",
+    type=OptimWrapper,
     optimizer=dict(type=FusedAdam, lr=1e-4, weight_decay=1e-2),
     clip_grad=dict(max_norm=1.0))
 
@@ -20,6 +19,6 @@ default_hooks = dict(
         interval=100,
         by_epoch=False,
         max_keep_ckpts=3,
-        save_optimizer=True,
+        save_optimizer=False,
     ))
 log_processor = dict(by_epoch=False)

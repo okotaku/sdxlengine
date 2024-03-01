@@ -1,3 +1,3 @@
-from .inpaint import StableDiffusionInpaint
+from .inpaint import StableDiffusionXLInpaint
 
-__all__ = ["StableDiffusionInpaint"]
+__all__ = ["StableDiffusionXLInpaint"]

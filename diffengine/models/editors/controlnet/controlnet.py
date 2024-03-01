@@ -2,7 +2,7 @@ from typing import Optional
 
 import numpy as np
 import torch
-from diffusers import ControlNetModel, StableDiffusionControlNetPipeline
+from diffusers import ControlNetModel, StableDiffusionXLControlNetPipeline
 from diffusers.utils import load_image
 from mmengine import print_log
 from PIL import Image
@@ -11,10 +11,10 @@ from torch import nn
 from diffengine.models.editors.controlnet.data_preprocessor import (
     ControlNetDataPreprocessor,
 )
-from diffengine.models.editors.stable_diffusion import StableDiffusion
+from diffengine.models.editors.stable_diffusion_xl import StableDiffusionXL
 
 
-class StableDiffusionControlNet(StableDiffusion):
+class StableDiffusionXLControlNet(StableDiffusionXL):
     """Stable Diffusion ControlNet.
 
     Args:
@@ -110,7 +110,8 @@ class StableDiffusionControlNet(StableDiffusion):
         self.vae.requires_grad_(requires_grad=False)
         print_log("Set VAE untrainable.", "current")
         if not self.pre_compute_text_embeddings:
-            self.text_encoder.requires_grad_(requires_grad=False)
+            self.text_encoder_one.requires_grad_(requires_grad=False)
+            self.text_encoder_two.requires_grad_(requires_grad=False)
             print_log("Set Text Encoder untrainable.", "current")
         self.unet.requires_grad_(requires_grad=False)
         print_log("Set Unet untrainable.", "current")
@@ -133,10 +134,11 @@ class StableDiffusionControlNet(StableDiffusion):
               prompt: list[str],
               condition_image: list[str | Image.Image],
               negative_prompt: str | None = None,
-              height: int = 512,
-              width: int = 512,
+              height: int = 1024,
+              width: int = 1024,
               num_inference_steps: int = 50,
               output_type: str = "pil",
+              seed: int = 0,
               **kwargs) -> list[np.ndarray]:
         """Inference function.
 
@@ -150,19 +152,21 @@ class StableDiffusionControlNet(StableDiffusion):
                 The prompt or prompts to guide the image generation.
                 Defaults to None.
             height (int):
-                The height in pixels of the generated image. Defaults to 512.
+                The height in pixels of the generated image. Defaults to 1024.
             width (int):
-                The width in pixels of the generated image. Defaults to 512.
+                The width in pixels of the generated image. Defaults to 1024.
             num_inference_steps (int): Number of inference steps.
                 Defaults to 50.
             output_type (str): The output format of the generate image.
                 Choose between 'pil' and 'latent'. Defaults to 'pil'.
+            seed (int): The seed for random number generator.
+                Defaults to 0.
             **kwargs: Other arguments.
 
         """
         assert len(prompt) == len(condition_image)
         if self.pre_compute_text_embeddings:
-            pipeline = StableDiffusionControlNetPipeline.from_pretrained(
+            pipeline = StableDiffusionXLControlNetPipeline.from_pretrained(
                 self.model,
                 vae=self.vae,
                 unet=self.unet,
@@ -171,11 +175,13 @@ class StableDiffusionControlNet(StableDiffusion):
                 torch_dtype=self.weight_dtype,
             )
         else:
-            pipeline = StableDiffusionControlNetPipeline.from_pretrained(
+            pipeline = StableDiffusionXLControlNetPipeline.from_pretrained(
                 self.model,
                 vae=self.vae,
-                text_encoder=self.text_encoder,
-                tokenizer=self.tokenizer,
+                text_encoder=self.text_encoder_one,
+                text_encoder_2=self.text_encoder_two,
+                tokenizer=self.tokenizer_one,
+                tokenizer_2=self.tokenizer_two,
                 unet=self.unet,
                 controlnet=self.controlnet,
                 safety_checker=None,
@@ -189,10 +195,12 @@ class StableDiffusionControlNet(StableDiffusion):
         pipeline.to(self.device)
         pipeline.set_progress_bar_config(disable=True)
         images = []
-        for p, img in zip(prompt, condition_image, strict=True):
+        for i, (p, img) in enumerate(zip(prompt, condition_image, strict=True)):
+            generator = torch.Generator(device=self.device).manual_seed(i + seed)
             pil_img = load_image(img) if isinstance(img, str) else img
             pil_img = pil_img.convert("RGB")
             image = pipeline(
+                p,
                 p,
                 pil_img,
                 negative_prompt=negative_prompt,
@@ -200,6 +208,7 @@ class StableDiffusionControlNet(StableDiffusion):
                 height=height,
                 width=width,
                 output_type=output_type,
+                generator=generator,
                 **kwargs).images[0]
             if output_type == "latent":
                 images.append(image)
@@ -214,13 +223,15 @@ class StableDiffusionControlNet(StableDiffusion):
     def _forward_compile(self,
                          noisy_latents: torch.Tensor,
                          timesteps: torch.Tensor,
-                         encoder_hidden_states: torch.Tensor,
+                         prompt_embeds: torch.Tensor,
+                         unet_added_conditions: dict,
                          inputs: dict) -> torch.Tensor:
         """Forward function for torch.compile."""
         down_block_res_samples, mid_block_res_sample = self.controlnet(
             noisy_latents,
             timesteps,
-            encoder_hidden_states=encoder_hidden_states,
+            prompt_embeds,
+            added_cond_kwargs=unet_added_conditions,
             controlnet_cond=inputs["condition_img"].to(self.weight_dtype),
             return_dict=False,
         )
@@ -228,7 +239,8 @@ class StableDiffusionControlNet(StableDiffusion):
         return self.unet(
             noisy_latents,
             timesteps,
-            encoder_hidden_states=encoder_hidden_states,
+            prompt_embeds,
+            added_cond_kwargs=unet_added_conditions,
             down_block_additional_residuals=down_block_res_samples,
             mid_block_additional_residual=mid_block_res_sample).sample
 
@@ -264,18 +276,31 @@ class StableDiffusionControlNet(StableDiffusion):
         noisy_latents = self._preprocess_model_input(latents, noise, timesteps)
 
         if not self.pre_compute_text_embeddings:
-            inputs["text"] = self.tokenizer(
+            inputs["text_one"] = self.tokenizer_one(
                 inputs["text"],
-                max_length=self.tokenizer.model_max_length,
+                max_length=self.tokenizer_one.model_max_length,
                 padding="max_length",
                 truncation=True,
                 return_tensors="pt").input_ids.to(self.device)
-            encoder_hidden_states = self.text_encoder(inputs["text"])[0]
+            inputs["text_two"] = self.tokenizer_two(
+                inputs["text"],
+                max_length=self.tokenizer_two.model_max_length,
+                padding="max_length",
+                truncation=True,
+                return_tensors="pt").input_ids.to(self.device)
+            prompt_embeds, pooled_prompt_embeds = self.encode_prompt(
+                inputs["text_one"], inputs["text_two"])
         else:
-            encoder_hidden_states = inputs["prompt_embeds"].to(self.weight_dtype)
+            prompt_embeds = inputs["prompt_embeds"].to(self.weight_dtype)
+            pooled_prompt_embeds = inputs["pooled_prompt_embeds"].to(self.weight_dtype)
+
+        unet_added_conditions = {
+            "time_ids": inputs["time_ids"].to(self.weight_dtype),
+            "text_embeds": pooled_prompt_embeds,
+        }
 
         model_pred = self._forward_compile(
-            noisy_latents, timesteps, encoder_hidden_states,
+            noisy_latents, timesteps, prompt_embeds, unet_added_conditions,
             inputs)
 
         return self.loss(model_pred, noise, latents, timesteps)

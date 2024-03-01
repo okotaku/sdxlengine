@@ -29,8 +29,12 @@ class InpaintDataPreprocessor(BaseDataPreprocessor):
         data["inputs"]["img"] = torch.stack(data["inputs"]["img"])
         data["inputs"]["masked_image"] = torch.stack(data["inputs"]["masked_image"])
         data["inputs"]["mask"] = torch.stack(data["inputs"]["mask"])
+        data["inputs"]["time_ids"] = torch.stack(data["inputs"]["time_ids"])
         # pre-compute text embeddings
         if "prompt_embeds" in data["inputs"]:
             data["inputs"]["prompt_embeds"] = torch.stack(
                 data["inputs"]["prompt_embeds"])
+        if "pooled_prompt_embeds" in data["inputs"]:
+            data["inputs"]["pooled_prompt_embeds"] = torch.stack(
+                data["inputs"]["pooled_prompt_embeds"])
         return super().forward(data)

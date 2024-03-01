@@ -115,11 +115,12 @@ class HFDreamBoothDatasetPreComputeEmbs(HFDreamBoothDataset):
 
     Args:
     ----
-        tokenizer (dict): Config of tokenizer.
-        scheduler (dict): Config of scheduler.
-        text_encoder (dict): Config of text encoder.
+        tokenizer_one (dict): Config of tokenizer one.
+        tokenizer_two (dict): Config of tokenizer two.
+        text_encoder_one (dict): Config of text encoder one.
+        text_encoder_two (dict): Config of text encoder two.
         model (str): pretrained model name of stable diffusion.
-            Defaults to 'runwayml/stable-diffusion-v1-5'.xt'.
+            Defaults to 'stabilityai/stable-diffusion-xl-base-1.0'.
         device (str): Device used to compute embeddings. Defaults to 'cuda'.
         proportion_empty_prompts (float): The probabilities to replace empty
             text. Defaults to 0.0.
@@ -128,9 +129,11 @@ class HFDreamBoothDatasetPreComputeEmbs(HFDreamBoothDataset):
 
     def __init__(self,
                  *args,
-                 tokenizer: dict,
-                 text_encoder: dict,
-                 model: str = "runwayml/stable-diffusion-v1-5",
+                 tokenizer_one: dict,
+                 tokenizer_two: dict,
+                 text_encoder_one: dict,
+                 text_encoder_two: dict,
+                 model: str = "stabilityai/stable-diffusion-xl-base-1.0",
                  device: str = "cuda",
                  proportion_empty_prompts: float = 0.0,
                  **kwargs) -> None:
@@ -138,21 +141,28 @@ class HFDreamBoothDatasetPreComputeEmbs(HFDreamBoothDataset):
 
         self.proportion_empty_prompts = proportion_empty_prompts
 
-        tokenizer = MODELS.build(
-            tokenizer,
+        tokenizer_one = MODELS.build(
+            tokenizer_one,
             default_args={"pretrained_model_name_or_path": model})
-        text_encoder = MODELS.build(
-            text_encoder,
+        tokenizer_two = MODELS.build(
+            tokenizer_two,
+            default_args={"pretrained_model_name_or_path": model})
+
+        text_encoder_one = MODELS.build(
+            text_encoder_one,
+            default_args={"pretrained_model_name_or_path": model}).to(device)
+        text_encoder_two = MODELS.build(
+            text_encoder_two,
             default_args={"pretrained_model_name_or_path": model}).to(device)
 
-        self.empty_embed = encode_prompt(
+        self.embed = encode_prompt(
             {"text": [self.instance_prompt, ""]},
-            text_encoder=text_encoder,
-            tokenizer=tokenizer,
+            text_encoders=[text_encoder_one, text_encoder_two],
+            tokenizers=[tokenizer_one, tokenizer_two],
             caption_column="text",
         )
 
-        del text_encoder, tokenizer
+        del text_encoder_one, text_encoder_two, tokenizer_one, tokenizer_two
         gc.collect()
         torch.cuda.empty_cache()
 
@@ -179,10 +189,15 @@ class HFDreamBoothDatasetPreComputeEmbs(HFDreamBoothDataset):
                 image = os.path.join(self.dataset_name, image)
             image = Image.open(image)
         image = image.convert("RGB")
+
+        use_null_embed = random.random() < self.proportion_empty_prompts
         result = {
             "img": image,
-            "prompt_embeds": self.empty_embed["prompt_embeds"][0] if (
-                random.random() < self.proportion_empty_prompts
-                ) else self.empty_embed["prompt_embeds"][1],
+            "prompt_embeds": self.embed["prompt_embeds"][0] if (
+                use_null_embed
+                ) else self.embed["prompt_embeds"][1],
+            "pooled_prompt_embeds": self.embed["pooled_prompt_embeds"][0] if (
+                use_null_embed
+                ) else self.embed["pooled_prompt_embeds"][1],
         }
         return self.pipeline(result)

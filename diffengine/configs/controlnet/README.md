@@ -32,7 +32,7 @@ $ diffengine train ${CONFIG_FILE}
 $ NPROC_PER_NODE=${GPU_NUM} diffengine train ${CONFIG_FILE}
 
 # Example.
-$ diffengine train stable_diffusion_v15_controlnet_fill50k
+$ diffengine train stable_diffusion_xl_controlnet_fill50k
 ```
 
 ## Inference with diffusers
@@ -41,24 +41,29 @@ Once you have trained a model, specify the path to where the model is saved, and
 
 ```py
 import torch
-from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
+from diffusers import StableDiffusionXLControlNetPipeline, ControlNetModel, AutoencoderKL
 from diffusers.utils import load_image
 
-checkpoint = 'work_dirs/stable_diffusion_v15_controlnet_fill50k/step6250'
+checkpoint = 'work_dirs/stable_diffusion_xl_controlnet_fill50k/step25000'
 prompt = 'cyan circle with brown floral background'
 condition_image = load_image(
     'https://github.com/okotaku/diffengine/assets/24734142/1af9dbb0-b056-435c-bc4b-62a823889191'
-)
+).resize((1024, 1024))
 
 controlnet = ControlNetModel.from_pretrained(
         checkpoint, subfolder='controlnet', torch_dtype=torch.float16)
-pipe = StableDiffusionControlNetPipeline.from_pretrained(
-    'runwayml/stable-diffusion-v1-5', controlnet=controlnet, torch_dtype=torch.float16)
+
+vae = AutoencoderKL.from_pretrained(
+    'madebyollin/sdxl-vae-fp16-fix',
+    torch_dtype=torch.float16,
+)
+pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+    'stabilityai/stable-diffusion-xl-base-1.0', controlnet=controlnet, vae=vae, torch_dtype=torch.float16)
 pipe.to('cuda')
 
 image = pipe(
     prompt,
-    condition_image,
+    image=condition_image,
     num_inference_steps=50,
 ).images[0]
 image.save('demo.png')
@@ -68,11 +73,11 @@ You can see more details on [`docs/source/run_guides/run_controlnet.md`](../../d
 
 ## Results Example
 
-#### stable_diffusion_v15_controlnet_fill50k
+#### stable_diffusion_xl_controlnet_fill50k
 
 ![input1](https://github.com/okotaku/diffengine/assets/24734142/1af9dbb0-b056-435c-bc4b-62a823889191)
 
-![example1](https://github.com/okotaku/diffengine/assets/24734142/a14cc9a6-3a40-4577-bd5a-2ddbab60970d)
+![example1](https://github.com/okotaku/diffengine/assets/24734142/a331a413-a9e7-4b9a-aa75-72279c4cc77a)
 
 ## Acknowledgement
 

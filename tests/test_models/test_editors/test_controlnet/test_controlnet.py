@@ -7,43 +7,44 @@ from diffusers.models.unets.unet_2d_blocks import CrossAttnDownBlock2D, DownBloc
 from mmengine.optim import OptimWrapper
 from mmengine.registry import MODELS
 from torch.optim import SGD
-from transformers import CLIPTextModel, CLIPTokenizer
+from transformers import AutoTokenizer, CLIPTextModel, CLIPTextModelWithProjection
 
 from diffengine.models.editors import (
-    StableDiffusionControlNet,
+    StableDiffusionXLControlNet,
 )
-from diffengine.models.editors.controlnet.data_preprocessor import (
-    ControlNetDataPreprocessor,
-)
-from diffengine.models.losses import L2Loss
 
 
-class TestStableDiffusionControlNet(TestCase):
+class TestStableDiffusionXLControlNet(TestCase):
 
     def _get_config(self) -> dict:
-        base_model = "diffusers/tiny-stable-diffusion-torch"
-        return dict(
-            type=StableDiffusionControlNet,
+        base_model = "hf-internal-testing/tiny-stable-diffusion-xl-pipe"
+        return dict(type=StableDiffusionXLControlNet,
              model=base_model,
-             controlnet_model="hf-internal-testing/tiny-controlnet",
-             tokenizer=dict(type=CLIPTokenizer.from_pretrained,
+             controlnet_model="hf-internal-testing/tiny-controlnet-sdxl",
+             tokenizer_one=dict(type=AutoTokenizer.from_pretrained,
                             pretrained_model_name_or_path=base_model,
-                            subfolder="tokenizer"),
+                            subfolder="tokenizer",
+                            use_fast=False),
+             tokenizer_two=dict(type=AutoTokenizer.from_pretrained,
+                            pretrained_model_name_or_path=base_model,
+                            subfolder="tokenizer_2",
+                            use_fast=False),
              scheduler=dict(type=DDPMScheduler.from_pretrained,
                             pretrained_model_name_or_path=base_model,
                             subfolder="scheduler"),
-             text_encoder=dict(type=CLIPTextModel.from_pretrained,
+             text_encoder_one=dict(type=CLIPTextModel.from_pretrained,
                                pretrained_model_name_or_path=base_model,
                                subfolder="text_encoder"),
+             text_encoder_two=dict(type=CLIPTextModelWithProjection.from_pretrained,
+                               pretrained_model_name_or_path=base_model,
+                               subfolder="text_encoder_2"),
              vae=dict(
                 type=AutoencoderKL.from_pretrained,
                 pretrained_model_name_or_path=base_model,
                 subfolder="vae"),
              unet=dict(type=UNet2DConditionModel.from_pretrained,
                              pretrained_model_name_or_path=base_model,
-                             subfolder="unet"),
-            data_preprocessor=dict(type=ControlNetDataPreprocessor),
-            loss=dict(type=L2Loss))
+                             subfolder="unet"))
 
     def test_init(self):
         cfg = self._get_config()
@@ -146,6 +147,7 @@ class TestStableDiffusionControlNet(TestCase):
             inputs=dict(
                 img=[torch.zeros((3, 64, 64))],
                 text=["a dog"],
+                time_ids=[torch.zeros((1, 6))],
                 condition_img=[torch.zeros((3, 64, 64))]))
         optimizer = SGD(StableDiffuser.parameters(), lr=0.1)
         optim_wrapper = OptimWrapper(optimizer)
@@ -165,6 +167,7 @@ class TestStableDiffusionControlNet(TestCase):
             inputs=dict(
                 img=[torch.zeros((3, 64, 64))],
                 text=["a dog"],
+                time_ids=[torch.zeros((1, 6))],
                 condition_img=[torch.zeros((3, 64, 64))]))
         optimizer = SGD(StableDiffuser.parameters(), lr=0.1)
         optim_wrapper = OptimWrapper(optimizer)
@@ -183,6 +186,7 @@ class TestStableDiffusionControlNet(TestCase):
             inputs=dict(
                 img=[torch.zeros((3, 64, 64))],
                 text=["a dog"],
+                time_ids=[torch.zeros((1, 6))],
                 condition_img=[torch.zeros((3, 64, 64))]))
         optimizer = SGD(StableDiffuser.parameters(), lr=0.1)
         optim_wrapper = OptimWrapper(optimizer)
@@ -204,7 +208,9 @@ class TestStableDiffusionControlNet(TestCase):
             inputs=dict(
                 img=[torch.zeros((3, 64, 64))],
                 condition_img=[torch.zeros((3, 64, 64))],
-                prompt_embeds=[torch.zeros((77, 32))]))
+                time_ids=[torch.zeros((1, 6))],
+                prompt_embeds=[torch.zeros((77, 64))],
+                pooled_prompt_embeds=[torch.zeros(32)]))
         optimizer = SGD(StableDiffuser.parameters(), lr=0.1)
         optim_wrapper = OptimWrapper(optimizer)
         log_vars = StableDiffuser.train_step(data, optim_wrapper)

@@ -1,3 +1,3 @@
-from .controlnet import StableDiffusionControlNet
+from .controlnet import StableDiffusionXLControlNet
 
-__all__ = ["StableDiffusionControlNet"]
+__all__ = ["StableDiffusionXLControlNet"]

@@ -1,7 +1,7 @@
 import numpy as np
 from mmengine.testing import RunnerTestCase
 from PIL import Image
-from transformers import CLIPTextModel, CLIPTokenizer
+from transformers import AutoTokenizer, CLIPTextModel, CLIPTextModelWithProjection
 
 from diffengine.datasets import (
     HFConditionDataset,
@@ -35,16 +35,23 @@ class TestHFConditionDatasetPreComputeEmbs(RunnerTestCase):
             dataset="tests/testdata/dataset",
             image_column="file_name",
             csv="metadata_cn.csv",
-            model="hf-internal-testing/tiny-stable-diffusion-torch",
-            tokenizer=dict(type=CLIPTokenizer.from_pretrained,
-                        subfolder="tokenizer"),
-            text_encoder=dict(type=CLIPTextModel.from_pretrained,
-                        subfolder="text_encoder"))
+            model="hf-internal-testing/tiny-stable-diffusion-xl-pipe",
+            tokenizer_one=dict(type=AutoTokenizer.from_pretrained,
+                            subfolder="tokenizer",
+                            use_fast=False),
+            tokenizer_two=dict(type=AutoTokenizer.from_pretrained,
+                            subfolder="tokenizer_2",
+                            use_fast=False),
+            text_encoder_one=dict(type=CLIPTextModel.from_pretrained,
+                            subfolder="text_encoder"),
+            text_encoder_two=dict(type=CLIPTextModelWithProjection.from_pretrained,
+                            subfolder="text_encoder_2"))
         assert len(dataset) == 1
 
         data = dataset[0]
         assert "text" not in data
-        assert np.array(data["prompt_embeds"]).shape == (77, 32)
+        assert np.array(data["prompt_embeds"]).shape == (77, 64)
+        assert np.array(data["pooled_prompt_embeds"]).shape == (32,)
         assert isinstance(data["img"], Image.Image)
         assert data["img"].width == 400
         assert isinstance(data["img"], Image.Image)
