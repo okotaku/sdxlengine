@@ -45,7 +45,8 @@ class TestHFConditionDatasetPreComputeEmbs(RunnerTestCase):
             text_encoder_one=dict(type=CLIPTextModel.from_pretrained,
                             subfolder="text_encoder"),
             text_encoder_two=dict(type=CLIPTextModelWithProjection.from_pretrained,
-                            subfolder="text_encoder_2"))
+                            subfolder="text_encoder_2"),
+            device="cpu")
         assert len(dataset) == 1
 
         data = dataset[0]
