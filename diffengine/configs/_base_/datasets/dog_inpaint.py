@@ -17,6 +17,7 @@ from diffengine.datasets.transforms import (
 from diffengine.engine.hooks import (
     CheckpointHook,
     CompileHook,
+    MemoryFormatHook,
     VisualizationHook,
 )
 
@@ -72,5 +73,6 @@ custom_hooks = [
         height=1024,
         interval=100),
     dict(type=CheckpointHook),
+    dict(type=MemoryFormatHook),
     dict(type=CompileHook),
 ]
