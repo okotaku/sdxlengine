@@ -5,6 +5,7 @@ from diffusers import DDPMScheduler
 
 from diffengine.models.utils import (
     EarlierTimeSteps,
+    EDMTimeSteps,
     LaterTimeSteps,
     RangeTimeSteps,
     TimeSteps,
@@ -23,6 +24,20 @@ class TestTimeSteps(TestCase):
         batch_size = 2
         timesteps = module(scheduler, batch_size, "cpu")
         assert timesteps.shape == (2,)
+
+
+class TestEDMTimeSteps(TestCase):
+
+        def test_init(self):
+            _ = EDMTimeSteps()
+
+        def test_forward(self):
+            module = EDMTimeSteps()
+            scheduler = DDPMScheduler.from_pretrained(
+                "runwayml/stable-diffusion-v1-5", subfolder="scheduler")
+            batch_size = 2
+            timesteps = module(scheduler, batch_size, "cpu")
+            assert timesteps.shape == (2,)
 
 
 class TestLaterTimeSteps(TestCase):

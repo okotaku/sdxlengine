@@ -273,7 +273,8 @@ class StableDiffusionXLControlNet(StableDiffusionXL):
         timesteps = self.timesteps_generator(self.scheduler, num_batches,
                                             self.device)
 
-        noisy_latents = self._preprocess_model_input(latents, noise, timesteps)
+        noisy_model_input, inp_noisy_latents, sigmas = self._preprocess_model_input(
+            latents, noise, timesteps)
 
         if not self.pre_compute_text_embeddings:
             inputs["text_one"] = self.tokenizer_one(
@@ -300,7 +301,8 @@ class StableDiffusionXLControlNet(StableDiffusionXL):
         }
 
         model_pred = self._forward_compile(
-            noisy_latents, timesteps, prompt_embeds, unet_added_conditions,
+            inp_noisy_latents, timesteps, prompt_embeds, unet_added_conditions,
             inputs)
 
-        return self.loss(model_pred, noise, latents, timesteps)
+        return self.loss(model_pred, noise, latents, timesteps,
+                         noisy_model_input, sigmas)
