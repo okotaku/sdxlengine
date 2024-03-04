@@ -44,12 +44,12 @@ Settings:
 - No gradient accumulation.
 - 833 samples. Batch size = 1.
 
-|                    Model                     | time per 1epoch |
-| :------------------------------------------: | :-------------: |
-|   stable_diffusion_xl_pokemon_blip (BF16)    |    10 m 46 s    |
-|   stable_diffusion_xl_pokemon_blip_compile   |    9 m 57 s     |
-|    stable_diffusion_xl_pokemon_blip_sfast    |    7 m 49 s     |
-| stable_diffusion_xl_pokemon_blip_pre_compute |    7 m 37 s     |
+|                      Model                       | time per 1epoch |
+| :----------------------------------------------: | :-------------: |
+| stable_diffusion_xl_pokemon_blip (BF16 autocast) |    10 m 46 s    |
+|                     All BF16                     |    7 m 58 s     |
+|             all bf16 + torch.compile             |    7 m 49 s     |
+|   all bf16 + NHWC + apex norm + torch.compile    |    7 m 36 s     |
 
 Note that `stable_diffusion_xl_pokemon_blip_compile` took a few minutes to compile.
 

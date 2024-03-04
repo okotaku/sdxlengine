@@ -65,6 +65,7 @@ class HFDataset(Dataset):
             int: The length of filtered dataset.
 
         """
+        return 50
         return len(self.dataset)
 
     def __getitem__(self, idx: int) -> dict:

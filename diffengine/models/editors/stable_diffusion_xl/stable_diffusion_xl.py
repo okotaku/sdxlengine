@@ -76,7 +76,7 @@ class StableDiffusionXL(BaseModel):
 
     """
 
-    def __init__(  # noqa: PLR0913,C901
+    def __init__(  # noqa: PLR0913,C901,PLR0912,PLR0915
         self,
         tokenizer_one: dict,
         tokenizer_two: dict,
@@ -184,6 +184,20 @@ class StableDiffusionXL(BaseModel):
         self.timesteps_generator = MODELS.build(
             timesteps_generator,
             default_args={"type": TimeSteps})
+
+        if hasattr(self.vae.config, "latents_mean",
+                   ) and self.vae.config.latents_mean is not None:
+            self.edm_style = True
+            self.register_buffer(
+                "latents_mean",
+                torch.tensor(self.vae.config.latents_mean).view(1, 4, 1, 1))
+            self.register_buffer(
+                "latents_std",
+                torch.tensor(self.vae.config.latents_std).view(1, 4, 1, 1))
+            self.register_buffer("sigmas", self.scheduler.sigmas)
+        else:
+            self.edm_style = False
+
         self.prepare_model()
         self.set_lora()
         self.set_xformers()
@@ -392,14 +406,22 @@ class StableDiffusionXL(BaseModel):
              noise: torch.Tensor,
              latents: torch.Tensor,
              timesteps: torch.Tensor,
+             noisy_model_input: torch.Tensor,
+             sigmas: torch.Tensor | None = None,
              weight: torch.Tensor | None = None) -> dict[str, torch.Tensor]:
         """Calculate loss."""
+        if self.edm_style:
+            model_pred = self.scheduler.precondition_outputs(
+                noisy_model_input, model_pred, sigmas)
+
         if self.prediction_type is not None:
             # set prediction_type of scheduler if defined
             self.scheduler.register_to_config(
                 prediction_type=self.prediction_type)
 
-        if self.scheduler.config.prediction_type == "epsilon":
+        if self.edm_style:
+            gt = latents
+        elif self.scheduler.config.prediction_type == "epsilon":
             gt = noise
         elif self.scheduler.config.prediction_type == "v_prediction":
             gt = self.scheduler.get_velocity(latents, noise, timesteps)
@@ -433,7 +455,16 @@ class StableDiffusionXL(BaseModel):
                 noise)
         else:
             input_noise = noise
-        return self.scheduler.add_noise(latents, input_noise, timesteps)
+        noisy_model_input = self.scheduler.add_noise(
+            latents, input_noise, timesteps)
+        if self.edm_style:
+            sigmas =self._get_sigmas(timesteps)
+            inp_noisy_latents = self.scheduler.precondition_inputs(
+                noisy_model_input, sigmas)
+        else:
+            inp_noisy_latents = noisy_model_input
+            sigmas = None
+        return noisy_model_input, inp_noisy_latents, sigmas
 
     def _forward_vae(self, img: torch.Tensor, num_batches: int,
                      ) -> torch.Tensor:
@@ -445,7 +476,19 @@ class StableDiffusionXL(BaseModel):
                 0, num_batches, self.vae_batch_size)
         ]
         latents = torch.cat(latents, dim=0)
+        if hasattr(self, "latents_mean"):
+            return (
+                latents - self.latents_mean
+            ) * self.vae.config.scaling_factor / self.latents_std
         return latents * self.vae.config.scaling_factor
+
+    def _get_sigmas(self, timesteps: torch.Tensor) -> torch.Tensor:
+        """Get sigmas."""
+        step_indices = [(
+            self.scheduler.timesteps.to(self.device) == t
+            ).nonzero().item() for t in timesteps]
+        sigma = self.sigmas[step_indices].flatten()
+        return sigma.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
 
     def forward(
             self,
@@ -476,7 +519,8 @@ class StableDiffusionXL(BaseModel):
         timesteps = self.timesteps_generator(self.scheduler, num_batches,
                                             self.device)
 
-        noisy_latents = self._preprocess_model_input(latents, noise, timesteps)
+        noisy_model_input, inp_noisy_latents, sigmas = self._preprocess_model_input(
+            latents, noise, timesteps)
 
         if not self.pre_compute_text_embeddings:
             inputs["text_one"] = self.tokenizer_one(
@@ -503,9 +547,10 @@ class StableDiffusionXL(BaseModel):
         }
 
         model_pred = self.unet(
-            noisy_latents,
+            inp_noisy_latents,
             timesteps,
             prompt_embeds,
             added_cond_kwargs=unet_added_conditions).sample
 
-        return self.loss(model_pred, noise, latents, timesteps)
+        return self.loss(model_pred, noise, latents, timesteps,
+                         noisy_model_input, sigmas)
