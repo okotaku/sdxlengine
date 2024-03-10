@@ -2,6 +2,7 @@ from mmengine.config import read_base
 
 from diffengine.engine.hooks import (
     CompileHook,
+    MemoryFormatHook,
     PeftSaveHook,
     VisualizationHook,
 )
@@ -17,5 +18,6 @@ model.update(weight_dtype="bf16")
 custom_hooks = [
     dict(type=VisualizationHook, prompt=["yoda pokemon"] * 4),
     dict(type=PeftSaveHook),
+    dict(type=MemoryFormatHook),
     dict(type=CompileHook),
 ]

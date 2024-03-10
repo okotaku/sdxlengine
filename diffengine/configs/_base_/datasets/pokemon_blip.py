@@ -14,6 +14,7 @@ from diffengine.datasets.transforms import (
 from diffengine.engine.hooks import (
     CheckpointHook,
     CompileHook,
+    MemoryFormatHook,
     VisualizationHook,
 )
 
@@ -50,5 +51,6 @@ test_evaluator = val_evaluator
 custom_hooks = [
     dict(type=VisualizationHook, prompt=["yoda pokemon"] * 4),
     dict(type=CheckpointHook),
+    dict(type=MemoryFormatHook),
     dict(type=CompileHook),
 ]
