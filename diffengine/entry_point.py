@@ -10,7 +10,7 @@ from mmengine.logging import print_log
 
 import diffengine
 from diffengine.tools import copy_cfg, list_cfg, train
-from diffengine.tools.analysis_tools import mean_score
+from diffengine.tools.analysis_tools import eval_ip_adapter, mean_score
 from diffengine.tools.model_converters import publish_model2diffusers
 from diffengine.tools.preprocess import bucket_ids
 
@@ -44,6 +44,8 @@ CLI_HELP_MSG = \
             diffengine preprocess bucket_ids
         6-1. Analyze mean score for all scores.json files in a work-dir:
             diffengine analyze mean_score $WORK_DIR
+        6-2. Eval IP adapter on a set of images:
+            diffengine analyze eval_ip_adapter --model $MODEL_NAME
 
     Run special commands:
 
@@ -75,16 +77,22 @@ PREPROCESS_HELP_MSG = \
 ANALYZE_HELP_MSG = \
     f"""
     Arguments received: {['diffengine'] + sys.argv[1:]!s}. diffengine commands use the following syntax:
+
         diffengine MODE MODE_ARGS ARGS
+
         Where   MODE (required) is one of {MODES}
                 MODE_ARG (optional) is the argument for specific mode
                 ARGS (optional) are the arguments for specific command
+
     Some usages for preprocess: (See more by using -h for specific command!)
+
         1. Analyze mean score for all scores.json files in a work-dir:
             diffengine analyze mean_score $WORK_DIR
+        2. Eval IP adapter on a set of images:
+            diffengine analyze eval_ip_adapter --model $MODEL_NAME
+
     GitHub: https://github.com/okotaku/diffengine
     """  # noqa: E501
-
 
 special = {
     "help": lambda: print_log(CLI_HELP_MSG, "current"),
@@ -110,6 +118,7 @@ modes: dict = {
     },
     "analyze": {
         "mean_score": mean_score.__file__,
+        "eval_ip_adapter": eval_ip_adapter.__file__,
         "--help": lambda: print_log(ANALYZE_HELP_MSG, "current"),
         "-h": lambda: print_log(ANALYZE_HELP_MSG, "current"),
     },
