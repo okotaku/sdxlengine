@@ -6,6 +6,7 @@ version = "0.1.0"
 requires-python = ">= 3.10"
 readme = "README.md"
 dependencies = [
+    "clean-fid",
     "torch>=2.1.2",
     "torchvision>=0.16.2",
     "datasets>=2.16.1",
@@ -24,7 +25,11 @@ keywords = ["computer vision", "diffusion models"]
 
 [project.optional-dependencies]
 dev = ["pytest", "coverage"]
-optional = ["deepspeed", "colossalai"]
+optional = [
+    "deepspeed",
+    "colossalai",
+    "onediff",
+    "oneflow@https://github.com/siliconflow/oneflow_releases/releases/download/community_cu121/oneflow-0.9.1.dev20240316+cu121-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"]
 docs = [
     "docutils==0.18.1",
     "modelindex",
@@ -73,7 +78,8 @@ universal = true
 
 [tool.ruff]
 target-version = "py310"
-exclude = ["diffengine/patches/*"]
+exclude = ["diffengine/patches/*",
+    "diffengine/tools/analysis_tools/onediff_compiler.py"]
 
 [tool.ruff.lint]
 select = ["ALL"]
